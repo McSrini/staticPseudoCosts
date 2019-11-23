@@ -36,9 +36,11 @@ public class BranchHandler extends BranchCallback {
                  
                 double upPseudoCost =   getUpPseudoCost(  var);         
 
-                //branch on the suggested var                 
+                         
 
             }
+            
+            //branch on the suggested var        
 
             //done
             abort ();
