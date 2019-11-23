@@ -32,9 +32,7 @@ public class Driver {
        
     private static Logger logger = Logger.getLogger(Driver.class);
     private  static  IloCplex cplex  ;
-    private static Map < String, Double > pseudoCostMap;
-    private static Map < String, Integer > priorityMap= new HashMap < String, Integer > ();;
-    
+     
     static {
         logger.setLevel( LOGGING_LEVEL);
         PatternLayout layout = new PatternLayout("%5p  %d  %F  %L  %m%n");     
@@ -57,19 +55,20 @@ public class Driver {
         // TODO code application logic here
         printParameters();
         
+        //read in the MIP
+        cplex =  new IloCplex();
+        cplex.importModel(  MIP_FILENAME);
+        if (DISABLE_HUERISTICS) cplex.setParam( IloCplex.Param.MIP.Strategy.HeuristicFreq , -ONE);
+        
+               
         if (! USE_PURE_CPLEX){        
-            //read in the MIP
-            cplex =  new IloCplex();
-            cplex.importModel(  MIP_FILENAME);
-
+            
             //strong branch till ready to branch root node, use single thread for this "ramp-up"
-            cplex.setParam( IloCplex.Param.Threads,  ONE);
+            
             cplex.setParam( IloCplex.Param.MIP.Strategy.VariableSelect  ,  THREE);
             cplex.setParam( IloCplex.Param.MIP.Limits.StrongCand  , BILLION );
             cplex.setParam( IloCplex.Param.MIP.Limits.StrongIt ,  BILLION );
-            //disable heuristics
-            cplex.setParam( IloCplex.Param.MIP.Strategy.HeuristicFreq , -ONE);
-
+            
             //using callback to find   pseudo costs
             BranchHandler branchHandler = new BranchHandler (getVariables(cplex).values());
             cplex.use( branchHandler);        ;
@@ -78,62 +77,46 @@ public class Driver {
             double startTime =  System.currentTimeMillis();
             cplex.solve ( );
             logger.info ("Completed strong branching. Took minutes " + (System.currentTimeMillis()-startTime )/ (TWO*THREE*TEN*THOUSAND)) ;
+            System.out.println ();
             System.out.println ("Completed strong branching. Took minutes " + (System.currentTimeMillis()-startTime )/ (TWO*THREE*TEN*THOUSAND)) ;
-            pseudoCostMap=branchHandler.pseudoCostMap ;
-
-            //prepare variable priorities
-            initializePriorities();
-            cplex.end();
-        }
-                        
-        
-        //reload the MIP, attach information callback and variable priorities
-        //solve for some time with static pseudo-costs, then clear priorities
-        //stop test after 24 hours, print progress after every hour
-        //
-        //if pure cplex then no priorities are set
-        //
-        
-        cplex =  new IloCplex();
-        cplex.importModel(  MIP_FILENAME); 
-        cplex.setParam(IloCplex.Param.RandomSeed,  CPLEX_RANDOM_SEED);
-        //cplex.setParam( IloCplex.Param.Threads, MAX_THREADS);
-        cplex.setParam(IloCplex.Param.MIP.Strategy.File,  FILE_STRATEGY);   
-        Map<String, IloNumVar> newVars = getVariables (  cplex);
-        if (! USE_PURE_CPLEX){        
-            for ( IloNumVar newVar : newVars.values()) {
-                cplex.setPriority(  newVar , priorityMap.get (newVar.getName()) );
-            }
-        }
-        
-        for (int hours=ZERO; hours <  TEST_DURATION_HOURS; hours ++){            
-            if (isHaltFilePresent()) break;
-            cplex.setParam( IloCplex.Param.TimeLimit, SIXTY *SIXTY);
-            cplex.solve ( );
-            logger.info ((hours + ONE)+"," + cplex.getBestObjValue() +
-                         ","  + cplex.getObjValue() + 
-                         ","  +cplex.getNnodes64() + 
-                         ","  +cplex.getNnodesLeft64()) ;
+            System.out.println ();
             
+            cplex.clearCallbacks();
+             
+        }
+                    
+        cplex.use ( new EmptyBranchCallback ());
+        //use pseudo cost based branching strategy
+        cplex.setParam( IloCplex.Param.MIP.Strategy.VariableSelect  ,  TWO);
+        //solve for 1 hour at a a time, and print progress
+        cplex.setParam( IloCplex.Param.TimeLimit, SIXTY *SIXTY);
+            
+        //now solve in 1 hour time slices
+        for (int hours=ZERO; hours <  TEST_DURATION_HOURS; hours ++ ){     
+
+            if (isHaltFilePresent()) break;            
             if (cplex.getStatus().equals( IloCplex.Status.Infeasible)) break;
             if (cplex.getStatus().equals( IloCplex.Status.Optimal)) break;
             
-            if (USE_VAR_PRIORITY_LIST_FOR_HOURS==hours && !USE_PURE_CPLEX) {
-                //remove var priority list
-                final IloNumVar[] emptyVarArray = new IloNumVar[]{};
-                cplex.delPriorities(  newVars.values().toArray(emptyVarArray));
-                logger.info ("var priority list has been reset") ;
-            }
+            cplex.solve ( );
+             
+            boolean isfeasible = cplex.getStatus().equals(IloCplex.Status.Feasible);
+            boolean isOptimal = cplex.getStatus().equals(IloCplex.Status.Optimal);
+            boolean hasSolution = isfeasible || isOptimal;
+                       
+            logger.info ((ONE+hours)+"," + cplex.getBestObjValue() +
+                         ","  + (hasSolution ? cplex.getObjValue() : BILLION )+ 
+                         ","  +cplex.getNnodes64() + 
+                         ","  +cplex.getNnodesLeft64()) ;            
         }
-        
+            
         logger.info("Solution status : "+ cplex.getStatus()) ;
         System.out.println("Solution status : "+ cplex.getStatus()) ;
         cplex.end();
-        
+
         logger.info ("Test Completed !") ;
         System.out.println ("Test Completed !") ;
-          
-                
+                        
     }
     
     private static Map<String, IloNumVar> getVariables (IloCplex cplex) throws IloException{
@@ -155,38 +138,12 @@ public class Driver {
         
         logger.info (" MIP_FILENAME "+  MIP_FILENAME) ;
         logger.info ("USE_PURE_CPLEX "+ USE_PURE_CPLEX) ;
-        logger.info ("USE_PRIORITY_LIST_FOR_HOURS "+ USE_VAR_PRIORITY_LIST_FOR_HOURS) ;  
+        logger.info ("DISABLE_HUERISTICS "+ DISABLE_HUERISTICS) ;  
         logger.info (" TEST_DURATION_HOURS "+  TEST_DURATION_HOURS) ;
         logger.info (" CPLEX_RANDOM_SEED "+ CPLEX_RANDOM_SEED ) ;
-        logger.info (" ALPHA "+  ALPHA) ;
-        //logger.info (" MAX_THREADS  "+ MAX_THREADS  ) ;
+        
         logger.info ("  FILE_STRATEGY "+  FILE_STRATEGY ) ;
        
     }
-    
-    private static void  initializePriorities (){
-       
-        //map stores lowest pseudo cost first
-        TreeMap <  Double, List<String> > invertedPseudoCostMap = new TreeMap <  Double, List<String> >();
         
-        for (Map.Entry < String, Double > entry :pseudoCostMap .entrySet()){
-            double thisVal =   entry.getValue();
-            List<String> currentList = invertedPseudoCostMap.get (thisVal) ;
-            if (currentList==null)  currentList = new ArrayList<String> ();
-            currentList.add (entry.getKey());
-            invertedPseudoCostMap.put (thisVal, currentList) ;
-        }
-        
-        //higher number = higher priority
-        int currentPriority = ONE;
-        for (Map.Entry<  Double, List<String> > entry : invertedPseudoCostMap.entrySet()){
-            for (String varName : entry.getValue()){
-                priorityMap.put (varName, currentPriority) ;
-            }
-            currentPriority++;
-        }
-        
-        
-                    
-    }
 }
