@@ -94,6 +94,7 @@ public class Driver {
         cplex.setParam( IloCplex.Param.TimeLimit, SIXTY *SIXTY);
         //use empty callback
         cplex.use (new EmptyBranchHandler ()) ;
+        cplex.setParam( IloCplex.Param.Threads,  MAX_THREADS);
             
         //now solve in 1 hour time slices
         for (int hours=ZERO; hours <  TEST_DURATION_HOURS; hours ++ ){     
@@ -146,7 +147,7 @@ public class Driver {
         logger.info ("DISABLE_HUERISTICS "+ DISABLE_HUERISTICS) ;  
         logger.info (" TEST_DURATION_HOURS "+  TEST_DURATION_HOURS) ;
         logger.info (" CPLEX_RANDOM_SEED "+ CPLEX_RANDOM_SEED ) ;
-        
+        logger.info (" MAX_THREADS "+ MAX_THREADS ) ;        
         logger.info ("  FILE_STRATEGY "+  FILE_STRATEGY ) ;
        
     }
