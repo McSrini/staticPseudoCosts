@@ -13,12 +13,13 @@ import static ca.mcmaster.staticpseudocosts.Constants.*;
  */
 public class Parameters {
        
-    public static final boolean USE_PURE_CPLEX = false;
+    public static final boolean USE_PURE_CPLEX = true;
     
-    //public static final String MIP_FILENAME = "opm2-z10-s4.pre.lp";  
-    public static final String MIP_FILENAME = "b1c1s1.pre.lp";  
+    public static final String MIP_FILENAME = "opm2-z10-s4.pre.lp";  
+    //public static final String MIP_FILENAME = "b1c1s1.pre.lp";  
     //public static final String MIP_FILENAME = "comp212idx.pre.lp";  
     //public static final String MIP_FILENAME = "bnatt500.pre.lp";  
+    //public static final String MIP_FILENAME = "F:\\temporary files here\\b1c1s1.pre.lp"; 
     
     public static final int  TEST_DURATION_HOURS = 24* 7;
     

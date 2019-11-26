@@ -58,20 +58,22 @@ public class Driver {
         //read in the MIP
         cplex =  new IloCplex();
         cplex.importModel(  MIP_FILENAME);
+        //disable heuristics
         if (DISABLE_HUERISTICS) cplex.setParam( IloCplex.Param.MIP.Strategy.HeuristicFreq , -ONE);
         
                
         if (! USE_PURE_CPLEX){        
             
-            //strong branch till ready to branch root node, use single thread for this "ramp-up"
-            
+            //strong branch till ready to branch root node
             cplex.setParam( IloCplex.Param.MIP.Strategy.VariableSelect  ,  THREE);
             cplex.setParam( IloCplex.Param.MIP.Limits.StrongCand  , BILLION );
             cplex.setParam( IloCplex.Param.MIP.Limits.StrongIt ,  BILLION );
             
             //using callback to find   pseudo costs
             BranchHandler branchHandler = new BranchHandler (getVariables(cplex).values());
+            NodeHandler nodeHandler = new NodeHandler ();
             cplex.use( branchHandler);        ;
+            cplex.use (nodeHandler );
             logger.info ("Starting strong branching ..." ) ;
             System.out.println ("Starting strong branching ...") ;
             double startTime =  System.currentTimeMillis();
@@ -85,11 +87,13 @@ public class Driver {
              
         }
                     
-        cplex.use ( new EmptyBranchCallback ());
+        //cplex.use ( new EmptyBranchCallback ());
         //use pseudo cost based branching strategy
         cplex.setParam( IloCplex.Param.MIP.Strategy.VariableSelect  ,  TWO);
         //solve for 1 hour at a a time, and print progress
         cplex.setParam( IloCplex.Param.TimeLimit, SIXTY *SIXTY);
+        //use empty callback
+        cplex.use (new EmptyBranchHandler ()) ;
             
         //now solve in 1 hour time slices
         for (int hours=ZERO; hours <  TEST_DURATION_HOURS; hours ++ ){     
@@ -98,6 +102,7 @@ public class Driver {
             if (cplex.getStatus().equals( IloCplex.Status.Infeasible)) break;
             if (cplex.getStatus().equals( IloCplex.Status.Optimal)) break;
             
+            System.out.println("Iteration " + (ONE+hours) +" Solving for 1 hour. Starting number of leafs is = " + cplex.getNnodesLeft64()) ;
             cplex.solve ( );
              
             boolean isfeasible = cplex.getStatus().equals(IloCplex.Status.Feasible);

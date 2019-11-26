@@ -5,19 +5,19 @@
  */
 package ca.mcmaster.staticpseudocosts;
 
-import static ca.mcmaster.staticpseudocosts.Constants.ZERO;
+import static ca.mcmaster.staticpseudocosts.Constants.ONE;
 import ilog.concert.IloException;
-import ilog.cplex.IloCplex;
+import ilog.cplex.IloCplex.NodeCallback;
 
 /**
  *
  * @author tamvadss
  */
-public class EmptyBranchCallback extends IloCplex.BranchCallback {
+public class NodeHandler extends NodeCallback {
  
     protected void main() throws IloException {
-        if (getNbranches() > ZERO) {
-             System.out.println (" leaf count  = "+ getNremainingNodes64()) ;
+        if (getNremainingNodes64()> ONE){
+            abort();
         }
     }
     

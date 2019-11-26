@@ -26,24 +26,12 @@ public class BranchHandler extends BranchCallback {
     }
  
     protected void main() throws IloException {
-        if (getNbranches() > ZERO) {
-         
-            for (IloNumVar var : variableList ){
-                
-                // force Cplex to compute the up and down pseudo cost for every variable
-                
-                double downPseudoCost =  getDownPseudoCost(  var);
-                 
-                double upPseudoCost =   getUpPseudoCost(  var);         
-
-                         
-
-            }
-            
-            //branch on the suggested var        
-
-            //done
-            abort ();
+        if (getNbranches() > ZERO) {      
+            // force Cplex to compute the up and down pseudo cost for every variable                
+            for (IloNumVar var : variableList ){                
+                double downPseudoCost =  getDownPseudoCost(  var);                 
+                double upPseudoCost =   getUpPseudoCost(  var); 
+            }           
         }
     }
     
